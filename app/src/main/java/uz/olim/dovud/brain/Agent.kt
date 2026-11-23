@@ -200,7 +200,7 @@ O'YIN REJIMI YOQILGAN:
                 return
             }
 
-            msgs.add(Msg("assistant", reply.text, reply.toolCalls))
+            msgs.add(Msg("assistant", reply.text, toolCalls = reply.toolCalls))
             var pendingImage: String? = null
             var finished: Result? = null
             for (call in reply.toolCalls) {
