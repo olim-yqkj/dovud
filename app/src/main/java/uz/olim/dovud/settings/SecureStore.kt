@@ -23,6 +23,7 @@ object SecureStore {
     const val GEMINI_MODEL = "gemini_model"
     const val BRIDGE_URL = "bridge_url"
     const val BRIDGE_TOKEN = "bridge_token"
+    const val SULAYMON_TG = "sulaymon_tg"
     const val GITHUB_TOKEN = "github_token"
     const val GITHUB_REPO = "github_repo"
     const val VOICE_PRINT = "voice_print"

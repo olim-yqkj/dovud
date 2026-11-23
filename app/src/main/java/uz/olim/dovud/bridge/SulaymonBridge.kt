@@ -22,7 +22,10 @@ object SulaymonBridge {
     private fun auth(b: Request.Builder) = b.header("Authorization", "Bearer ${SecureStore.get(SecureStore.BRIDGE_TOKEN)}")
 
     suspend fun ask(text: String, timeoutSec: Int = 120, onWaiting: suspend () -> Unit = {}): String = withContext(Dispatchers.IO) {
-        if (!configured()) return@withContext "Sulaymon ko'prigi sozlanmagan. Sozlamalarga server manzili va tokenni kiriting."
+        if (!configured()) {
+            if (TelegramBridge.configured()) return@withContext withContext(Dispatchers.Main) { TelegramBridge.ask(text, timeoutSec, onWaiting) }
+            return@withContext "Sulaymon ko'prigi sozlanmagan. Sozlamalarga Sulaymon botining Telegram nomini kiriting."
+        }
         if (!base().startsWith("https://")) return@withContext "Xavfsizlik uchun server manzili https:// bilan boshlanishi kerak."
         val body = JSONObject().put("text", text).toString().toRequestBody("application/json".toMediaType())
         val id = try {

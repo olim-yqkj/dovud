@@ -35,6 +35,8 @@ class SettingsActivity : AppCompatActivity() {
         field(SecureStore.GEMINI_KEY, "Gemini API kaliti (zaxira, bepul)", true, "AIza...")
 
         col.addView(Ui.title(this, "Sulaymon ko'prigi"))
+        field(SecureStore.SULAYMON_TG, "Sulaymon botining Telegram nomi (oddiy yo'l)", false, "@sulaymon_bot")
+        col.addView(Ui.text(this, "Yoki server orqali (ixtiyoriy):", 13f))
         field(SecureStore.BRIDGE_URL, "Server manzili", false, "https://sizning-serveringiz.uz")
         field(SecureStore.BRIDGE_TOKEN, "Maxfiy token", true)
 

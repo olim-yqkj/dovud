@@ -257,6 +257,21 @@ class DovudAccessibilityService : AccessibilityService() {
 
     fun currentPackage(): String = rootInActiveWindow?.packageName?.toString() ?: lastPackage
 
+    /** Berilgan ilova oynasidagi barcha tugunlar (Telegram ko'prigi uchun). */
+    fun nodesOf(pkgPrefix: String): List<AccessibilityNodeInfo> {
+        val out = ArrayList<AccessibilityNodeInfo>()
+        val roots = ArrayList<AccessibilityNodeInfo>()
+        runCatching { for (w in windows) w.root?.let { roots.add(it) } }
+        if (roots.isEmpty()) rootInActiveWindow?.let { roots.add(it) }
+        fun walk(n: AccessibilityNodeInfo, d: Int) {
+            if (d > 50) return
+            out.add(n)
+            for (i in 0 until n.childCount) n.getChild(i)?.let { walk(it, d + 1) }
+        }
+        for (r in roots) if (r.packageName?.toString()?.startsWith(pkgPrefix) == true) walk(r, 0)
+        return out
+    }
+
     companion object {
         @Volatile var instance: DovudAccessibilityService? = null
             private set
