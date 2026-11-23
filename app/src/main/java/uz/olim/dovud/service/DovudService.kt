@@ -86,6 +86,7 @@ class DovudService : Service(), MicEngine.Listener, Io {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!::mic.isInitialized) return START_NOT_STICKY
         when (intent?.action) {
             ACTION_TALK -> talk()
             ACTION_STOP -> stopAll()
