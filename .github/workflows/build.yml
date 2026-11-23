@@ -1,0 +1,102 @@
+name: APK yig'ish va chiqarish
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'server/**', 'sulaymon/**']
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: main
+      notes:
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Nutq modellari (keshdan yoki yuklab)
+        id: cache-vosk
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/assets/vosk
+          key: vosk-uz-0.22-spk-0.4
+
+      - name: Nutq modellarini yuklash
+        if: steps.cache-vosk.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p app/src/main/assets/vosk /tmp/vosk
+          cd /tmp/vosk
+          curl -fsSL -o uz.zip https://alphacephei.com/vosk/models/vosk-model-small-uz-0.22.zip
+          curl -fsSL -o spk.zip https://alphacephei.com/vosk/models/vosk-model-spk-0.4.zip
+          unzip -q uz.zip && unzip -q spk.zip
+          mv vosk-model-small-uz-0.22 $GITHUB_WORKSPACE/app/src/main/assets/vosk/uz
+          mv vosk-model-spk-0.4 $GITHUB_WORKSPACE/app/src/main/assets/vosk/spk
+
+      - name: Uyg'otish so'zi lug'atda bormi
+        run: |
+          W=$(find app/src/main/assets/vosk/uz -name words.txt | head -1)
+          echo "words.txt: $W"
+          if [ -n "$W" ]; then grep -E "^(dovud|dovut|davud|dovid|to'xta|toxta|stop|bas|yetar) " "$W" || echo "Lug'atda topilmadi — to'liq tanish rejimi ishlatiladi"; fi
+
+      - name: Imzo kaliti
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > $RUNNER_TEMP/dovud.jks
+            echo "KEYSTORE_PATH=$RUNNER_TEMP/dovud.jks" >> $GITHUB_ENV
+          else
+            echo "::warning::KEYSTORE_B64 secret yo'q — vaqtinchalik kalit bilan imzolanadi (yangilanishlar ishlamaydi)"
+          fi
+
+      - name: Versiya raqami
+        run: |
+          CODE=$(( ( $(date +%s) - 1735689600 ) / 60 ))
+          echo "VERSION_CODE=$CODE" >> $GITHUB_ENV
+          echo "VERSION_NAME=1.$CODE" >> $GITHUB_ENV
+
+      - name: APK yig'ish
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: gradle --no-daemon assembleRelease
+
+      - name: APK nomi
+        run: cp app/build/outputs/apk/release/app-release.apk dovud.apk && ls -la dovud.apk
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION_CODE }}
+          name: Dovud ${{ env.VERSION_NAME }}
+          body: |
+            ${{ inputs.notes || github.event.head_commit.message || 'Yangi versiya' }}
+
+            Yuklab olish: dovud.apk
+          files: dovud.apk
+          make_latest: true
