@@ -53,7 +53,15 @@ Ovozingizni tanimasa: Sozlamalar → "Ovoz izi chegarasi"ni kamaytiring (masalan
 
 ---
 
-## 6. Sulaymon ko'prigi (server + kompyuter)
+## 6. Sulaymon ko'prigi
+
+### 6.0. ODDIY YO'L — Telegram orqali (tavsiya etiladi)
+1. Telegram'da Sulaymon botining nomini toping (chat sarlavhasini bosing → `@...` nom).
+2. Dovud → **Sozlamalar** → "Sulaymon botining Telegram nomi" → masalan `@yqkj_sulaymon_bot` → **Saqlash**.
+3. Sinash: **"Dovud, Sulaymonga ayt: salom"**. Dovud Telegram'ni ochadi, yozadi, javobni kutadi va o'qib beradi.
+Shartlar: kompyuter yoqiq va Sulaymon ishlayapti; telefon ekrani qulfdan ochiq.
+
+### 6.1–6.4. MURAKKAB YO'L — server orqali (ixtiyoriy)
 
 Sxema: **Telefon → (HTTPS + maxfiy token) → Server → Kompyuterdagi Sulaymon → javob → Telefon**.
 
