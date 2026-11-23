@@ -67,7 +67,10 @@ class DovudService : Service(), MicEngine.Listener, Io {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        goForeground()
+        try { goForeground() } catch (e: Exception) {
+            Bus.log("Xato", "Fon xizmati ishga tushmadi: ${e.message}")
+            instance = null; stopSelf(); return
+        }
         androidTts = AndroidTts(this)
         tone = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 70) }.getOrNull()
         agent = Agent(this, this, FailoverLlm(OpenAiClient(), GeminiClient()))
@@ -92,7 +95,7 @@ class DovudService : Service(), MicEngine.Listener, Io {
 
     override fun onDestroy() {
         instance = null
-        runCatching { mic.stop() }
+        if (::mic.isInitialized) runCatching { mic.stop() }
         scope.cancel()
         tone?.release()
         super.onDestroy()
@@ -261,6 +264,8 @@ class DovudService : Service(), MicEngine.Listener, Io {
             private set
 
         fun start(ctx: Context): Boolean = try {
+            if (ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                throw IllegalStateException("Mikrofon ruxsati yo'q")
             val i = Intent(ctx, DovudService::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i) else ctx.startService(i)
             true
