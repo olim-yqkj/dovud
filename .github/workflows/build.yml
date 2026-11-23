@@ -64,14 +64,27 @@ jobs:
 
       - name: Imzo kaliti
         env:
-          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          SIGN_PW: ${{ secrets.DOVUD_SIGN_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > $RUNNER_TEMP/dovud.jks
-            echo "KEYSTORE_PATH=$RUNNER_TEMP/dovud.jks" >> $GITHUB_ENV
-          else
-            echo "::warning::KEYSTORE_B64 secret yo'q — vaqtinchalik kalit bilan imzolanadi (yangilanishlar ishlamaydi)"
+          if [ -z "$SIGN_PW" ]; then
+            echo "::warning::DOVUD_SIGN_PASSWORD secret yo'q — vaqtinchalik kalit bilan imzolanadi (yangilanishlar ishlamaydi)"
+            exit 0
           fi
+          if [ ! -f signing/dovud.jks.enc ]; then
+            echo "Birinchi marta: yangi imzo kaliti yaratilmoqda"
+            keytool -genkeypair -keystore $RUNNER_TEMP/dovud.jks -alias dovud -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$SIGN_PW" -keypass "$SIGN_PW" -dname "CN=Dovud, C=UZ" >/dev/null
+            mkdir -p signing
+            openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in $RUNNER_TEMP/dovud.jks -out signing/dovud.jks.enc -pass env:SIGN_PW
+            git config user.name "dovud-bot"
+            git config user.email "dovud-bot@users.noreply.github.com"
+            git add signing/dovud.jks.enc
+            git commit -m "Imzo kaliti (shifrlangan) [skip ci]"
+            git push origin HEAD:main
+          else
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in signing/dovud.jks.enc -out $RUNNER_TEMP/dovud.jks -pass env:SIGN_PW
+          fi
+          echo "KEYSTORE_PATH=$RUNNER_TEMP/dovud.jks" >> $GITHUB_ENV
 
       - name: Versiya raqami
         run: |
@@ -81,10 +94,22 @@ jobs:
 
       - name: APK yig'ish
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: gradle --no-daemon assembleRelease
+          KEYSTORE_PASSWORD: ${{ secrets.DOVUD_SIGN_PASSWORD }}
+          KEY_ALIAS: dovud
+          KEY_PASSWORD: ${{ secrets.DOVUD_SIGN_PASSWORD }}
+        run: |
+          set -o pipefail
+          gradle --no-daemon assembleRelease 2>&1 | tee build.log
+
+      - name: Xato logini saqlash (tekshirish uchun)
+        if: failure()
+        run: |
+          mkdir -p /tmp/logs && cd /tmp/logs
+          git init -q -b build-logs
+          cp $GITHUB_WORKSPACE/build.log . 2>/dev/null || echo "log yo'q" > build.log
+          grep -E "^e: |error:|FAILURE|What went wrong" -A3 build.log > errors.txt || true
+          git add . && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm "log ${{ github.run_id }}"
+          git push -f https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} build-logs
 
       - name: APK nomi
         run: cp app/build/outputs/apk/release/app-release.apk dovud.apk && ls -la dovud.apk
